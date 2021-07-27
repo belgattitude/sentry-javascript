@@ -27,7 +27,8 @@ const userNextConfig = {
       }),
   }),
 };
-const userSentryWebpackPluginConfig = { org: 'squirrelChasers', project: 'simulator', include: './thirdPartyMaps' };
+const userSentryWebpackPluginConfig = { org: 'squirrelChasers', project: 'simulator' };
+process.env.SENTRY_AUTH_TOKEN = 'dogsarebadatkeepingsecrets';
 
 /** Mocks of the arguments passed to the result of `withSentryConfig` (when it's a function). */
 const runtimePhase = 'ball-fetching';
@@ -115,7 +116,7 @@ function materializeFinalNextConfig(
  */
 async function materializeFinalWebpackConfig(options: {
   userNextConfig: ExportedNextConfig;
-  userSentryWebpackPluginConfig?: SentryWebpackPluginOptions;
+  userSentryWebpackPluginConfig?: Partial<SentryWebpackPluginOptions>;
   incomingWebpackConfig: WebpackConfigObject;
   incomingWebpackBuildContext: BuildContext;
 }): Promise<WebpackConfigObject> {
@@ -292,12 +293,45 @@ describe('webpack config', () => {
 });
 
 describe('Sentry webpack plugin config', () => {
-  it('includes expected properties', () => {
-    // TODO
+  it('includes expected properties', async () => {
+    // also, can pull from either env or user config (see notes on specific properties below)
+    const finalWebpackConfig = await materializeFinalWebpackConfig({
+      userNextConfig,
+      userSentryWebpackPluginConfig,
+      incomingWebpackConfig: serverWebpackConfig,
+      incomingWebpackBuildContext: serverBuildContext,
+    });
+
+    expect(finalWebpackConfig.plugins?.[0].options).toEqual(
+      expect.objectContaining({
+        include: [
+          // because this is the server build
+          { path: '.next/server/chunks/', urlPrefix: '~/_next/server/chunks' },
+          { path: '.next/server/pages/', urlPrefix: '~/_next/server/pages' },
+          { path: '.next/serverless/', urlPrefix: '~/_next/serverless' },
+        ],
+        ignore: [], // default
+        org: 'squirrelChasers', // from user webpack plugin config
+        project: 'simulator', // from user webpack plugin config
+        authToken: 'dogsarebadatkeepingsecrets', // picked up from env
+        stripPrefix: ['webpack://_N_E/'], // default
+        urlPrefix: `~/_next`, // default
+        entries: expect.any(Function), // default, tested separately elsewhere
+        release: 'doGsaREgReaT', // from build context
+        dryRun: false, // based on buildContext.dev being false
+      }),
+    );
   });
 
-  it('preserves unrelated plugin config options', () => {
-    // TODO
+  it('preserves unrelated plugin config options', async () => {
+    const finalWebpackConfig = await materializeFinalWebpackConfig({
+      userNextConfig,
+      userSentryWebpackPluginConfig: { ...userSentryWebpackPluginConfig, debug: true },
+      incomingWebpackConfig: serverWebpackConfig,
+      incomingWebpackBuildContext: serverBuildContext,
+    });
+
+    expect((finalWebpackConfig.plugins?.[0].options as SentryWebpackPluginOptions).debug).toEqual(true);
   });
 
   it('warns when overriding certain default values', () => {
