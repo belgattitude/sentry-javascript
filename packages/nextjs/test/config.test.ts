@@ -63,8 +63,14 @@ const clientWebpackConfig = {
   target: 'web',
   context: '/Users/Maisey/projects/squirrelChasingSimulator',
 };
-const serverBuildContext = { isServer: true, dev: false, buildId: 'doGsaREgReaT' };
-const clientBuildContext = { isServer: false, dev: false, buildId: 'doGsaREgReaT' };
+
+const baseBuildContext = {
+  dev: false,
+  buildId: 'doGsaREgReaT',
+  dir: '/Users/Maisey/projects/squirrelChasingSimulator',
+};
+const serverBuildContext = { isServer: true, ...baseBuildContext };
+const clientBuildContext = { isServer: false, ...baseBuildContext };
 
 /**
  * Derive the final values of all next config options, by first applying `withSentryConfig` and then, if it returns a
